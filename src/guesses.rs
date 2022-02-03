@@ -103,6 +103,12 @@ impl WordGuess {
   }
 }
 
+impl Default for WordGuess {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 impl Display for WordGuess {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
     let guess = self

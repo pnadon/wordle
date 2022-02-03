@@ -1,4 +1,3 @@
-use anyhow::anyhow;
 use std::{collections::HashSet, error::Error};
 
 use crate::{parse_word_err, Word};

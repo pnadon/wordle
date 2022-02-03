@@ -97,14 +97,14 @@ async fn handle_move(
     .channel_id
     .say(&ctx.http, resp_msg)
     .await
-    .map_err(|e| discord_err_msg(e))?;
-  Ok(match board.state() {
+    .map_err(discord_err_msg)?;
+  match board.state() {
     State::Lost => {
       msg
         .channel_id
         .say(&ctx.http, "You lost! Try again tomorrow!")
         .await
-        .map_err(|e| discord_err_msg(e))?;
+        .map_err(discord_err_msg)?;
     }
     State::Playing => (),
     State::Won => {
@@ -115,9 +115,10 @@ async fn handle_move(
           format!("You won!\n{}", board.as_discord_emojis()),
         )
         .await
-        .map_err(|e| discord_err_msg(e))?;
+        .map_err(discord_err_msg)?;
     }
-  })
+  }
+  Ok(())
 }
 
 fn play_move(msg: &Message, board: &mut Board, word_bank: &WordBank) -> Result<String, String> {
