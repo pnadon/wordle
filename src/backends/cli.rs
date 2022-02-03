@@ -11,6 +11,7 @@ use crate::{parse_word_err, Word};
 pub fn run() -> Result<(), Box<dyn Error>> {
   let word_bank = WordBank::from_raw(DAY_WORDS, GUESS_WORDS)?;
   let mut _last_date_won = None;
+
   loop {
     let word_of_the_day = word_bank.get_word(days_since_start()?).unwrap();
     let board = Board::new(*word_of_the_day);
@@ -28,6 +29,7 @@ fn handle_user_input(board: Board, word_bank: &WordBank) -> Result<State, Box<dy
     buf.clear();
     println!("Enter your guess");
     io::stdin().read_line(&mut buf)?;
+
     let guess: Word = buf
       .trim()
       .chars()
@@ -42,6 +44,7 @@ fn handle_user_input(board: Board, word_bank: &WordBank) -> Result<State, Box<dy
       println!("invalid input, try again");
     };
   }
+
   println!("Result: {}", board.state());
   Ok(board.state())
 }

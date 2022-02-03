@@ -33,48 +33,64 @@ impl EventHandler for Handler {
     let mut data = ctx.data.write().await;
     let boards: &mut HashMap<u64, Board> = data.get_mut::<PersistentData>().unwrap();
 
+    let word_of_the_day = self
+      .word_bank
+      .get_word(days_since_start().unwrap())
+      .unwrap();
+
     match boards.get_mut(&id) {
       None => {
-        let word_of_the_day = self
-          .word_bank
-          .get_word(days_since_start().unwrap())
-          .unwrap();
         boards.insert(id, Board::new(*word_of_the_day));
       }
-      Some(board) => match board.state() {
-        State::Lost => {
-          if let Err(e) = msg
-            .channel_id
-            .say(
-              &ctx.http,
+      Some(board) => {
+        if word_of_the_day != board.correct_word() {
+          if let Err(e) = send_msg(
+            &ctx,
+            &msg,
+            &format!(
+              "Here's your score for today:\n{}",
+              board.as_discord_emojis()
+            ),
+          )
+          .await
+          {
+            print_discord_err_msg(e);
+          };
+          *board = Board::new(*word_of_the_day);
+        }
+        match board.state() {
+          State::Lost => {
+            if let Err(e) = send_msg(
+              &ctx,
+              &msg,
               "You've already played today, try again tomorrow!",
             )
             .await
-          {
-            print_discord_err_msg(e);
+            {
+              print_discord_err_msg(e);
+            }
           }
-        }
-        State::Won => {
-          if let Err(e) = msg
-            .channel_id
-            .say(
-              &ctx.http,
-              format!(
+          State::Won => {
+            if let Err(e) = send_msg(
+              &ctx,
+              &msg,
+              &format!(
                 "Here's your score for today:\n{}",
                 board.as_discord_emojis()
               ),
             )
             .await
-          {
-            println!("{}", e);
+            {
+              println!("{}", e);
+            }
+          }
+          _ => {
+            if let Err(e) = handle_move(&ctx, msg, board, &self.word_bank).await {
+              println!("{:?}", e);
+            }
           }
         }
-        State::Playing => {
-          if let Err(e) = handle_move(&ctx, msg, board, &self.word_bank).await {
-            println!("{:?}", e);
-          }
-        }
-      },
+      }
     }
   }
 
@@ -93,32 +109,19 @@ async fn handle_move(
   word_bank: &WordBank,
 ) -> Result<(), String> {
   let resp_msg = play_move(&msg, board, word_bank)?;
-  msg
-    .channel_id
-    .say(&ctx.http, resp_msg)
-    .await
-    .map_err(discord_err_msg)?;
+  send_msg(ctx, &msg, &resp_msg).await?;
+
   match board.state() {
-    State::Lost => {
-      msg
-        .channel_id
-        .say(&ctx.http, "You lost! Try again tomorrow!")
-        .await
-        .map_err(discord_err_msg)?;
-    }
-    State::Playing => (),
-    State::Won => {
-      msg
-        .channel_id
-        .say(
-          &ctx.http,
-          format!("You won!\n{}", board.as_discord_emojis()),
-        )
-        .await
-        .map_err(discord_err_msg)?;
-    }
+    State::Lost =>
+      send_msg(ctx, &msg, "You lost! Try again tomorrow!").await,
+    State::Playing => Ok(()),
+    State::Won =>
+      send_msg(
+        ctx,
+        &msg,
+        &format!("You won!\n{}", board.as_discord_emojis()),
+      ).await
   }
-  Ok(())
 }
 
 fn play_move(msg: &Message, board: &mut Board, word_bank: &WordBank) -> Result<String, String> {
@@ -137,6 +140,15 @@ fn play_move(msg: &Message, board: &mut Board, word_bank: &WordBank) -> Result<S
   } else {
     Ok("Invalid input, try again".to_string())
   }
+}
+
+async fn send_msg(ctx: &Context, msg: &Message, body: &str) -> Result<(), String> {
+  msg
+    .channel_id
+    .say(&ctx.http, body)
+    .await
+    .map_err(discord_err_msg)?;
+  Ok(())
 }
 
 pub async fn run() -> Result<(), Box<dyn Error>> {

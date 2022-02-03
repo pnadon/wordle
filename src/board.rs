@@ -71,6 +71,10 @@ impl Board {
   pub fn state(&self) -> State {
     self.state
   }
+
+  pub fn correct_word(&self) -> &Word {
+    &self.correct_word
+  }
 }
 
 impl Display for Board {
